@@ -15,7 +15,9 @@ class DefaultEntityManager : EntityManager {
             synchronized(this) { entities[universalID, klass] }
 
     override fun set(universalID: UniversalID, entity: Any): Unit = synchronized(this) {
+        unids[entity]?.let { entities.remove(it, entity.javaClass.kotlin) }
         entities.put(universalID, entity.javaClass.kotlin, entity)
+        unids[entity] = universalID
     }
 
     override fun contains(entity: Any): Boolean = synchronized(this) {

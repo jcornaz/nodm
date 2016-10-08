@@ -23,10 +23,12 @@ object NODM {
         DefaultDatabaseManager(database)
     }
 
-    inline operator fun <reified T : Any> get(unid: UniversalID): T? = databaseManager.let { dbm ->
+    fun mapper(): Mapper = databaseManager.let { dbm ->
         if (dbm == null) throw IllegalStateException("No database manager")
-        else Mapper(dbm, entityManager).get<T>(unid)
+        else Mapper(dbm, entityManager)
     }
+
+    inline operator fun <reified T : Any> get(unid: UniversalID): T? = mapper().get<T>(unid)
 
     inline operator fun <reified T : Any> get(unid: String): T? = get(unid, T::class.java)
     inline operator fun <reified T : Any> get(unid: UniversalID, klass: Class<T>): T? = get(unid)
@@ -34,5 +36,5 @@ object NODM {
     inline operator fun <reified T : Any> get(unid: UniversalID, klass: KClass<T>): T? = get(unid, klass.java)
     inline operator fun <reified T : Any> get(unid: String, klass: KClass<T>): T? = get(UniversalID(unid), klass.java)
 
-    fun save(entity: Any): Unit = TODO()
+    fun save(entity: Any): Unit = mapper().save(entity)
 }

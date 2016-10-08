@@ -1,3 +1,3 @@
 package nodm.exceptions
 
-class DatabaseNotFound(server: String, databae: String) : Exception("Database \"$databae\" not found on \"$server\"")
+class DatabaseNotFound(name: String) : Exception("Database \"$name\" not found")

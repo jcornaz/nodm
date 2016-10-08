@@ -1,32 +1,32 @@
 package nodm.impl
 
-import com.google.common.collect.HashBasedTable
 import lotus.domino.Database
 import lotus.domino.Session
 import nodm.DatabaseManager
+import nodm.exceptions.DatabaseNotFound
+import nodm.utils.avoidExceptions
 import nodm.utils.safeRecycle
+import java.util.*
 
 class DefaultDatabaseManager(
-        val defaultDatabase: Database? = null,
-        val findDatabase: (String, String) -> Database?
+        val findDatabase: (String) -> Database,
+        val releaseDatabase: (Database) -> Unit = { it.safeRecycle() }
 ) : DatabaseManager {
 
-    constructor(session: Session, defaultDatabase: Database? = null) : this(defaultDatabase, { server, db -> session.getDatabase(server, db, false) })
+    constructor(session: Session, defaultDatabase: Database? = null) : this({ name ->
+        avoidExceptions { session.getDatabase("", name, false) } ?: defaultDatabase ?: throw DatabaseNotFound(name)
+    })
+
     constructor(defaultDatabase: Database) : this(defaultDatabase.parent, defaultDatabase)
 
-    val databases = HashBasedTable.create<String, String, Database>().apply {
-        defaultDatabase?.let { put(defaultDatabase.server, defaultDatabase.fileName, it) }
-    }!!
+    val databases = HashMap<String, Database>()
 
-    override fun get(server: String?, database: String?): Database? = synchronized(this) {
-        if (server == null || database == null) defaultDatabase
-        else databases[server, database]
-                ?: findDatabase(server, database)?.apply { databases.put(server, database, this) }
-                ?: defaultDatabase
+    override fun get(name: String): Database = synchronized(this) {
+        databases[name] ?: findDatabase(name).apply { databases[name] = this }
     }
 
     override fun clear() = synchronized(this) {
-        databases.values().forEach { it.safeRecycle() }
+        databases.values.forEach(releaseDatabase)
         databases.clear()
     }
 }

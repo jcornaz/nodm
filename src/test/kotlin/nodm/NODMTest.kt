@@ -12,12 +12,12 @@ class NODMTest {
 
     class MyClass {
 
-        val testField: String = ""
+        val testField: String = "test"
 
         @NotesItem(name = "notesName")
-        val intValue: Int = 0
+        val intValue: Int = 12
 
-        @NotesTransientItem
+        @NotesTransient
         val transientField: String = "content"
     }
 
@@ -47,5 +47,19 @@ class NODMTest {
     @Test
     fun testReadNonExistentDocument() {
         Assert.assertNull(NODM[Unid.generate().toString(), MyClass::class])
+    }
+
+    @Test
+    fun testWrite() {
+        NODM.save(MyClass())
+
+        val documents = db.documents
+
+        Assert.assertEquals(1, documents.size)
+        val doc = documents.values.first()
+
+        Assert.assertEquals(12, doc["notesName"])
+        Assert.assertEquals("test", doc["testField"])
+        Assert.assertFalse("transientField" in doc.items)
     }
 }
