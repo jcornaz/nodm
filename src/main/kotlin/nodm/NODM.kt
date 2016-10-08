@@ -4,19 +4,19 @@ import lotus.domino.Database
 import lotus.domino.Session
 import kotlin.reflect.KClass
 
-interface DatabaseSolver {
-    operator fun get(session: Session, server: String?, database: String?): Database?
-
-    fun recycle()
-}
-
 object NODM {
 
     var context: MappingContext? = null
 
-    fun connect(database: Database) {
+    val isConnected: Boolean
+        get() = context != null
+
+    fun connect(database: Database) =
+            connect(database.parent, DefaultDatabaseFinder(database))
+
+    fun connect(session: Session, databaseFinder: DefaultDatabaseFinder) {
         disconnect(false)
-        context = MappingContext(database.parent, DefaultDatabaseFinder(database))
+        context = MappingContext(session, databaseFinder)
     }
 
     fun disconnect(recycleDatabases: Boolean = true) {
@@ -24,10 +24,15 @@ object NODM {
         context = null
     }
 
-    operator fun <T : Any> get(unid: UniversalID, klass: KClass<T>): T? = context.let {
-        if (it == null) throw IllegalStateException("Not connected")
-        else it[unid, klass]
+    inline operator fun <reified T : Any> get(unid: UniversalID): T? = with(context) {
+        if (this == null) throw IllegalStateException("Not connected")
+        else get<T>(unid)
     }
 
-    operator fun <T : Any> get(unid: String, klass: KClass<T>): T? = get(UniversalID(unid), klass)
+    inline operator fun <reified T : Any> get(unid: String): T? = get(unid, T::class.java)
+    inline operator fun <reified T : Any> get(unid: UniversalID, klass: Class<T>): T? = get(unid)
+    inline operator fun <reified T : Any> get(unid: String, klass: Class<T>): T? = get(UniversalID(unid), klass)
+    inline operator fun <reified T : Any> get(unid: UniversalID, klass: KClass<T>): T? = get(unid, klass.java)
+    inline operator fun <reified T : Any> get(unid: String, klass: KClass<T>): T? = get(UniversalID(unid), klass.java)
+
 }
