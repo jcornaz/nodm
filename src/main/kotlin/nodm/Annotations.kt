@@ -1,6 +1,7 @@
 package nodm
 
 import java.lang.reflect.Field
+import kotlin.reflect.KClass
 
 @Target(AnnotationTarget.CLASS)
 annotation class NotesDocument(
@@ -24,8 +25,8 @@ val Field.isNotesItem: Boolean
 val Field.notesItem: NotesItem?
     get() = getAnnotation(NotesItem::class.java)
 
-val Class<*>.notesDocument: NotesDocument?
-    get() = getAnnotation(NotesDocument::class.java)
+val KClass<*>.notesDocument: NotesDocument?
+    get() = java.getAnnotation(NotesDocument::class.java)
 
 fun Iterable<Field>.filterNotesItems(all: Boolean): Collection<Field> =
         if (all) filter { it.isNotNotesTransient } else filter { it.isNotesItem }

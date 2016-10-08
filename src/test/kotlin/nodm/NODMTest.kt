@@ -3,7 +3,6 @@ package nodm
 import com.toolable.notes.stub.model.DatabaseStub
 import com.toolable.notes.stub.model.DocumentStub
 import com.toolable.notes.stub.model.Unid
-import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -28,11 +27,6 @@ class NODMTest {
     fun setup() {
         db = DatabaseStub()
         NODM.connect(db.implementation)
-    }
-
-    @After()
-    fun tearDown() {
-        NODM.disconnect()
     }
 
     @Test

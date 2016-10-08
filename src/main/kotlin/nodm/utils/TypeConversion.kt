@@ -1,4 +1,4 @@
-package nodm
+package nodm.utils
 
 import nodm.exceptions.UnsupportedTypeException
 import java.lang.reflect.ParameterizedType

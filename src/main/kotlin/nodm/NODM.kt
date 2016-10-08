@@ -1,32 +1,31 @@
 package nodm
 
 import lotus.domino.Database
-import lotus.domino.Session
+import nodm.impl.DefaultDatabaseManager
+import nodm.impl.DefaultEntityManager
+import nodm.impl.Mapper
+import nodm.utils.mutableLazy
 import kotlin.reflect.KClass
+
 
 object NODM {
 
-    var context: MappingContext? = null
+    var databaseManager: DatabaseManager? = null
+
+    var entityManager: EntityManager by mutableLazy { DefaultEntityManager() }
 
     val isConnected: Boolean
-        get() = context != null
+        get() = databaseManager != null
 
-    fun connect(database: Database) =
-            connect(database.parent, DefaultDatabaseFinder(database))
-
-    fun connect(session: Session, databaseFinder: DefaultDatabaseFinder) {
-        disconnect(false)
-        context = MappingContext(session, databaseFinder)
+    fun connect(database: Database) {
+        databaseManager?.clear()
+        databaseManager = DefaultDatabaseManager(database)
+        DefaultDatabaseManager(database)
     }
 
-    fun disconnect(recycleDatabases: Boolean = true) {
-        if (recycleDatabases) context?.databaseFinder?.recycle()
-        context = null
-    }
-
-    inline operator fun <reified T : Any> get(unid: UniversalID): T? = with(context) {
-        if (this == null) throw IllegalStateException("Not connected")
-        else get<T>(unid)
+    inline operator fun <reified T : Any> get(unid: UniversalID): T? = databaseManager.let { dbm ->
+        if (dbm == null) throw IllegalStateException("No database manager")
+        else Mapper(dbm, entityManager).get<T>(unid)
     }
 
     inline operator fun <reified T : Any> get(unid: String): T? = get(unid, T::class.java)
@@ -35,4 +34,5 @@ object NODM {
     inline operator fun <reified T : Any> get(unid: UniversalID, klass: KClass<T>): T? = get(unid, klass.java)
     inline operator fun <reified T : Any> get(unid: String, klass: KClass<T>): T? = get(UniversalID(unid), klass.java)
 
+    fun save(entity: Any): Unit = TODO()
 }

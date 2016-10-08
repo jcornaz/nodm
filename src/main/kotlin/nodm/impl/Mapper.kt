@@ -1,15 +1,14 @@
-package nodm
+package nodm.impl
 
-import lotus.domino.Document
-import lotus.domino.Session
-import nodm.exceptions.DatabaseNotFound
+import nodm.*
+import nodm.utils.*
 import java.lang.reflect.Field
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.memberProperties
 
-data class MappingContext(val session: Session, val databaseFinder: DatabaseSolver) {
+data class Mapper(val databaseManager: DatabaseManager, val entityManager: EntityManager) {
 
-    inline fun <reified T : Any> Document.read(field: Field, instance: T): Unit {
+    inline fun <reified T : Any> lotus.domino.Document.read(field: Field, instance: T): Unit {
         val fieldName = field.notesItem?.name?.orNull() ?: field.name
         val notesValues: List<Any?> = getItemValue(fieldName) ?: emptyList()
 
@@ -27,7 +26,7 @@ data class MappingContext(val session: Session, val databaseFinder: DatabaseSolv
         field.isAccessible = wasAccessible
     }
 
-    inline fun <reified T : Any> Document.read(allProperties: Boolean): T {
+    inline fun <reified T : Any> lotus.domino.Document.read(allProperties: Boolean): T {
         val constructor = T::class.constructors.firstOrNull { it.parameters.isEmpty() } ?: throw IllegalArgumentException("The class \"${T::class.qualifiedName}\" does not have a no-arg constructor")
         val instance = constructor.call()
 
@@ -42,14 +41,20 @@ data class MappingContext(val session: Session, val databaseFinder: DatabaseSolv
         return instance
     }
 
-    inline operator fun <reified T : Any> get(unid: UniversalID): T? {
-        val annotation = T::class.java.notesDocument
+    inline operator fun <reified T : Any> get(unid: UniversalID): T? =
+            (entityManager[unid, T::class] as? T) ?: let {
+                val annotation = T::class.notesDocument
 
-        val server = annotation?.server?.orNull()
-        val database = annotation?.database?.orNull()
+                val server = annotation?.server?.orNull()
+                val database = annotation?.database?.orNull()
 
-        val db = databaseFinder[session, server, database] ?: throw DatabaseNotFound(server.orEmpty(), database.orEmpty())
+                val db = databaseManager[server, database] ?: throw nodm.exceptions.DatabaseNotFound(server.orEmpty(), database.orEmpty())
 
-        return db[unid]?.read(annotation?.allProperties ?: true)
-    }
+                db[unid]?.use {
+                    println("start")
+                    val result = it.read<T>(annotation?.allProperties ?: true)
+                    entityManager[unid] = result
+                    return@use result
+                }
+            }
 }
