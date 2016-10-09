@@ -17,6 +17,7 @@ apply plugin: 'kotlin'
 
 repositories {
     mavenCentral()
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
@@ -24,8 +25,8 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
 
     compile files("lib/Notes.jar")
-    compile 'com.google.guava:guava:19.0'
-    
+    compile 'com.github.slimaku:kable:d0469ee7bc'
+
     testCompile 'junit:junit:4.12'
     testCompile project(":lib:notes.stub")
 }
