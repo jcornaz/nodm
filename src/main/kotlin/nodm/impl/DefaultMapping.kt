@@ -14,33 +14,37 @@ import kotlin.reflect.KClass
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.memberProperties
 
-class DefaultMapping<T : Any>(klass: KClass<T>) : Mapping<T> {
+class DefaultMapping<out T : Any>(klass: KClass<T>) : Mapping<T> {
 
-    val fields: Collection<FieldMapping> = klass.memberProperties
-            .map { it.javaField }
-            .filterNotNull()
-            .filterNotesItems(klass.notesDocument?.allProperties ?: true)
-            .map { field ->
-                val name = field.notesItem?.name ?: field.name
+    val fields: Collection<FieldMapping> by lazy {
+        klass.memberProperties
+                .map { it.javaField }
+                .filterNotNull()
+                .filterNotesItems(klass.notesDocument?.allProperties ?: true)
+                .map { field ->
+                    val name = field.notesItem?.name ?: field.name
 
-                val adapterClass = field.getAnnotation(NotesTypeAdapter::class.java)?.value ?: when {
-                    field.type.isAssignableFrom(Int::class.java) -> IntAdapter::class
-                    field.type.isAssignableFrom(String::class.java) -> StringAdapter::class
-                    else -> throw UnsupportedTypeException(field.type)
+                    val adapterClass = field.getAnnotation(NotesTypeAdapter::class.java)?.value ?: when {
+                        field.type.isAssignableFrom(Int::class.java) -> IntAdapter::class
+                        field.type.isAssignableFrom(String::class.java) -> StringAdapter::class
+                        else -> throw UnsupportedTypeException(field.type)
+                    }
+
+                    val adapter = adapterClass.constructors.firstOrNull { it.parameters.isEmpty() }?.call()
+                            ?: throw MissingNoArgumentConstructorException(adapterClass)
+
+                    FieldMapping(name, field, adapter)
                 }
-
-                val adapter = adapterClass.constructors.firstOrNull { it.parameters.isEmpty() }?.call()
-                        ?: throw MissingNoArgumentConstructorException(adapterClass)
-
-                FieldMapping(name, field, adapter)
-            }
-
-    val idField: Field? = klass.notesID?.apply {
-        if (!type.isAssignableFrom(String::class.java) && !type.isAssignableFrom(UniversalID::class.java))
-            throw IllegalArgumentException("${NotesUniversalID::class.qualifiedName} must be a String or a ${UniversalID::class.qualifiedName}")
     }
 
-    override fun unidOf(instance: T): UniversalID? = idField?.force { it[instance] }.let {
+    val idField: Field? by lazy {
+        klass.notesID?.apply {
+            if (!type.isAssignableFrom(String::class.java) && !type.isAssignableFrom(UniversalID::class.java))
+                throw IllegalArgumentException("${NotesUniversalID::class.qualifiedName} must be a String or a ${UniversalID::class.qualifiedName}")
+        }
+    }
+
+    override fun unidOf(instance: @UnsafeVariance T): UniversalID? = idField?.force { it[instance] }.let {
         when (it) {
             is UniversalID -> it
             is String -> UniversalID(it)
@@ -48,7 +52,7 @@ class DefaultMapping<T : Any>(klass: KClass<T>) : Mapping<T> {
         }
     }
 
-    override fun read(document: Document, instance: T, mapper: Mapper) {
+    override fun read(document: Document, instance: @UnsafeVariance  T, mapper: Mapper) {
 
         for ((name, field, adapter) in fields) {
             val notesValues: List<Any?> = document.getItemValue(name) ?: emptyList()
@@ -59,7 +63,7 @@ class DefaultMapping<T : Any>(klass: KClass<T>) : Mapping<T> {
         updateInstanceID(document, instance)
     }
 
-    override fun write(instance: T, document: Document, force: Boolean, createConflict: Boolean) {
+    override fun write(instance: @UnsafeVariance  T, document: Document, force: Boolean) {
 
         for ((name, field, adapter) in fields) {
             field
@@ -68,11 +72,11 @@ class DefaultMapping<T : Any>(klass: KClass<T>) : Mapping<T> {
                     .let { document.replaceItemValue(name, Vector(it.filterNotNull())) }
         }
 
-        document.save(force, createConflict)
+        document.save(force)
         updateInstanceID(document, instance)
     }
 
-    fun updateInstanceID(document: Document, instance: T) {
+    fun updateInstanceID(document: Document, instance: @UnsafeVariance T) {
         idField?.force { it[instance] = if (it.type.isAssignableFrom(String::class.java)) document.universalID else document.unid }
     }
 }

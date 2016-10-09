@@ -8,7 +8,11 @@ import nodm.utils.use
 import java.util.*
 import kotlin.reflect.KClass
 
-data class DefaultMapper(val databaseManager: DatabaseManager, val entityManager: EntityManager) : Mapper {
+data class DefaultMapper(
+        val databaseManager: DatabaseManager,
+        val entityManager: EntityManager,
+        val mappingFactory: MappingFactory
+) : Mapper {
 
     private val mappings = HashMap<KClass<*>, Mapping<*>>()
 
@@ -21,7 +25,7 @@ data class DefaultMapper(val databaseManager: DatabaseManager, val entityManager
                 db[unid]?.use { doc ->
 
                     val entity = klass.constructors.firstOrNull { it.parameters.isEmpty() }?.call() ?: throw MissingNoArgumentConstructorException(klass)
-                    val mapping = mappings.getOrPut(klass) { DefaultMapping(klass) } as Mapping<T>
+                    val mapping = mappings.getOrPut(klass) { mappingFactory.createMapping(klass) }
                     mapping.read(doc, entity, this)
 
                     entity
@@ -32,16 +36,15 @@ data class DefaultMapper(val databaseManager: DatabaseManager, val entityManager
     @Throws(DatabaseNotFound::class)
     inline operator fun <reified T : Any> get(unid: UniversalID): T? = get(unid, T::class)
 
-    @Suppress("UNCHECKED_CAST")
     @Throws(DatabaseNotFound::class)
-    fun <T : Any> save(entity: T, force: Boolean = false, makeResponse: Boolean = false) {
+    override fun <T : Any> save(entity: T, force: Boolean) {
 
         val klass = entity.javaClass.kotlin
-        val mapping = mappings.getOrPut(klass) { DefaultMapping(klass) } as Mapping<T>
+        val mapping = mappings.getOrPut(klass) { mappingFactory.createMapping(klass) }
         val unid = mapping.unidOf(entity) ?: entityManager.unidOf(entity)
         val database = databaseManager[klass.dbName] ?: throw DatabaseNotFound(klass.dbName)
         val document = unid?.let { database[it] } ?: database.createDocument()
 
-        mapping.write(entity, document, force, makeResponse)
+        mapping.write(entity, document, force)
     }
 }
