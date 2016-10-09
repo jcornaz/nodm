@@ -2,8 +2,7 @@ package nodm.impl
 
 import lotus.domino.Document
 import nodm.*
-import nodm.adapter.IntAdapter
-import nodm.adapter.StringAdapter
+import nodm.adapter.DefaultAdapters
 import nodm.exceptions.MissingNoArgumentConstructorException
 import nodm.exceptions.UnsupportedTypeException
 import nodm.utils.force
@@ -24,14 +23,12 @@ class DefaultMapping<out T : Any>(klass: KClass<T>) : Mapping<T> {
                 .map { field ->
                     val name = field.notesItem?.name ?: field.name
 
-                    val adapterClass = field.getAnnotation(NotesTypeAdapter::class.java)?.value ?: when {
-                        field.type.isAssignableFrom(Int::class.java) -> IntAdapter::class
-                        field.type.isAssignableFrom(String::class.java) -> StringAdapter::class
-                        else -> throw UnsupportedTypeException(field.type)
-                    }
+                    val adapterClass = field.getAnnotation(NotesTypeAdapter::class.java)?.value
 
-                    val adapter = adapterClass.constructors.firstOrNull { it.parameters.isEmpty() }?.call()
-                            ?: throw MissingNoArgumentConstructorException(adapterClass)
+                    val adapter = adapterClass?.let {
+                        it.constructors.firstOrNull { it.parameters.isEmpty() }?.call()
+                                ?: throw MissingNoArgumentConstructorException(adapterClass)
+                    } ?: DefaultAdapters[field.type] ?: throw UnsupportedTypeException(field.type)
 
                     FieldMapping(name, field, adapter)
                 }
