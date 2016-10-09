@@ -18,6 +18,9 @@ annotation class NotesTransient
 annotation class NotesItem(val name: String = "")
 
 @Target(AnnotationTarget.FIELD)
+annotation class NotesTypeAdapter(val value: KClass<TypeAdapter<*>>)
+
+@Target(AnnotationTarget.FIELD)
 annotation class NotesUniversalID
 
 val Field.isNotesID: Boolean

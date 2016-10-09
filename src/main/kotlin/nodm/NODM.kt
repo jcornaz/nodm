@@ -3,7 +3,7 @@ package nodm
 import lotus.domino.Database
 import nodm.impl.DefaultDatabaseManager
 import nodm.impl.DefaultEntityManager
-import nodm.impl.Mapper
+import nodm.impl.DefaultMapper
 import nodm.utils.mutableLazy
 import kotlin.reflect.KClass
 
@@ -23,13 +23,12 @@ object NODM {
         DefaultDatabaseManager(database)
     }
 
-    fun mapper(): Mapper = databaseManager.let { dbm ->
+    fun mapper(): DefaultMapper = databaseManager.let { dbm ->
         if (dbm == null) throw IllegalStateException("No database manager")
-        else Mapper(dbm, entityManager)
+        else DefaultMapper(dbm, entityManager)
     }
 
     inline operator fun <reified T : Any> get(unid: UniversalID): T? = mapper().get<T>(unid)
-
     inline operator fun <reified T : Any> get(unid: String): T? = get(unid, T::class.java)
     inline operator fun <reified T : Any> get(unid: UniversalID, klass: Class<T>): T? = get(unid)
     inline operator fun <reified T : Any> get(unid: String, klass: Class<T>): T? = get(UniversalID(unid), klass)

@@ -58,8 +58,8 @@ class NODMTest {
         Assert.assertEquals(1, documents.size)
         val doc = documents.values.first()
 
-        Assert.assertEquals(12, doc["notesName"])
-        Assert.assertEquals("test", doc["testField"])
+        Assert.assertEquals(12, doc["notesName"]?.integer)
+        Assert.assertEquals("test", doc["testField"]?.string)
         Assert.assertFalse("transientField" in doc.items)
     }
 }
